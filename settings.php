@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Strings for component 'filter_applink', language 'en'
+ * Settings that allow configuring various applink features.
  *
  * @package    filter_applink
  * @copyright  2019 Dani Palou <dani@moodle.com>
@@ -24,8 +24,12 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['filtername'] = 'Moodle App link';
-$string['pluginname'] = 'Moodle App link Filter';
-$string['privacy:metadata'] = 'The Moodle App link Filter plugin does not store any personal data.';
-$string['urlscheme'] = 'URL scheme';
-$string['urlscheme_help'] = 'If you want to open a custom app instead of the official Moodle app, then specify its URL scheme here.';
+if ($ADMIN->fulltree) {
+    // URL scheme.
+    $setting = new admin_setting_configtext('filter_applink/urlscheme',
+                                         new lang_string('urlscheme', 'filter_applink'),
+                                         new lang_string('urlscheme_help', 'filter_applink'),
+                                         '',
+                                         PARAM_ALPHA);
+    $settings->add($setting);
+}
