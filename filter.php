@@ -25,7 +25,14 @@
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * TODO.
+ * Given some text, treat all the anchors that have the data-app-link atttribute, converting them to a
+ * link to open the Moodle app.
+ *
+ * The user can configure the schema to use and also the username to put in the link.
+ *
+ * Example syntax:
+ *    <a href="..." data-app-link>basic usage</a>
+ *    <a href="..." data-app-link="myscheme" data-username>advanced usage</a>
  *
  * @package    filter_applink
  * @copyright  2019 Dani Palou <dani@moodle.com>
@@ -68,17 +75,16 @@ class filter_applink extends moodle_text_filter {
      * @return string
      */
     protected function replace_callback($textblock) {
-        global $CFG;
+        global $CFG, $USER;
 
+        // Get the href and scheme to use.
         $hrefmatches = $this->get_attr_data('href', $textblock[0]);
+        $schemematches = $this->get_attr_data('data-app-link', $textblock[0]);
 
-        if (empty($hrefmatches)) {
+        if (!$hrefmatches || !$schemematches) {
             // No href, stop.
             return $textblock[0];
         }
-
-        // Get the scheme to use.
-        $schemematches = $this->get_attr_data('data-app-link', $textblock[0]);
 
         $scheme = $schemematches[1];
 
@@ -91,14 +97,39 @@ class filter_applink extends moodle_text_filter {
             }
         }
 
+        // Get the username to use.
+        $usernamematches = $this->get_attr_data('data-username', $textblock[0]);
+        if (!$usernamematches) {
+            $username = '';
+        } else {
+            if (empty($usernamematches[1])) {
+                // No username specified, use current user.
+                $username = $USER->username;
+            } else {
+                $username = $usernamematches[1];
+            }
+        }
+
         // Create the new link.
-        $appurl = $scheme . '://' . $CFG->wwwroot;
+        $appurl = $scheme . '://';
+
+        $baseurl = $CFG->wwwroot;
+        if ($username) {
+            $baseurl = preg_replace('/(https?:\/\/)/is', "$1$username@", $baseurl);
+        }
+
+        $appurl .= $baseurl;
+
         if ($hrefmatches[1] != $CFG->wwwroot) {
             // The URL is not the base URL of the site, set the redirect.
             $appurl .= '?redirect=' . $hrefmatches[1];
         }
 
-        return str_replace($hrefmatches[1], $appurl, $textblock[0]);
+        // Remove the attributes of this filter.
+        $result = preg_replace($this->get_attr_regex('data-app-link'), '', $textblock[0]);
+        $result = preg_replace($this->get_attr_regex('data-username'), '', $result);
+
+        return str_replace($hrefmatches[1], $appurl, $result);
     }
 
     /**
@@ -109,9 +140,23 @@ class filter_applink extends moodle_text_filter {
      * @return array The first element has the full match (name+value), the second has the value.
      */
     protected function get_attr_data($name, $text) {
-        preg_match('/'.$name.'=[ |\n]*"([^"]*)"/is', $text, $matches);
+        preg_match($this->get_attr_regex($name), $text, $matches);
 
-        return $matches;
+        if (!empty($matches)) {
+            return array($matches[0], count($matches) > 2 ? $matches[2] : '');
+        }
+
+        return false;
+    }
+
+    /**
+     * Get the regex to match a certain attribute.
+     *
+     * @param string $name Name of the attribute.
+     * @return string Regex.
+     */
+    protected function get_attr_regex($name) {
+        return '/ '.$name.'(=[ |\n]*"([^"]*)")?/is';
     }
 
     /**
