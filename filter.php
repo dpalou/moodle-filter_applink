@@ -108,8 +108,8 @@ class filter_applink extends moodle_text_filter {
             $username = '';
         } else {
             if (empty($usernamematches[1])) {
-                // No username specified, use current user.
-                $username = $USER->username;
+                // No username specified, use current user if any.
+                $username = !empty($USER->id) ? $USER->username : '';
             } else {
                 $username = $usernamematches[1];
             }
