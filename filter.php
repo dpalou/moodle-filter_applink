@@ -54,6 +54,11 @@ class filter_applink extends moodle_text_filter {
             return $text;
         }
 
+        // Check if the text contains any data-app-link. stripos is faster than checking a regex.
+        if (stripos($text, 'data-app-link') === false) {
+            return $text;
+        }
+
         $search = '/<a[^>]+data-app-link[^>]*>/is'; // Search anchors that have the "data-app-link" attribute.
         $result = preg_replace_callback($search, function($matches) {
             return $this->replace_callback($matches);
